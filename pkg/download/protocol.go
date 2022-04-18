@@ -2,9 +2,12 @@ package download
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gomods/athens/pkg/download/mode"
 	"github.com/gomods/athens/pkg/errors"
@@ -207,7 +210,6 @@ func (p *protocol) Info(ctx context.Context, mod, ver string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
-
 	return info, nil
 }
 
@@ -246,12 +248,36 @@ func (p *protocol) Zip(ctx context.Context, mod, ver string) (storage.SizeReadCl
 	return zip, nil
 }
 
+func (p *protocol) validateModuleDate(ctx context.Context, mod, ver string, maxDate time.Time) error {
+	if maxDate.IsZero() {
+		return nil
+	}
+	infoRaw, err := p.storage.Info(ctx, mod, ver)
+	if err != nil {
+		return fmt.Errorf("can't get storage info: %v, module: %v@%v", err, mod, ver)
+	}
+	info := storage.RevInfo{}
+	err = json.Unmarshal(infoRaw, &info)
+	if err != nil {
+		return fmt.Errorf("can't unmarshal storage info: %v, module: %v@%v", err, mod, ver)
+	}
+	if info.Time.After(maxDate) {
+		return fmt.Errorf("module %v@%v changed after max date", mod, ver)
+	}
+
+	return nil
+}
+
 func (p *protocol) processDownload(ctx context.Context, mod, ver string, f func(newVer string) error) error {
 	const op errors.Op = "protocol.processDownload"
-	switch p.df.Match(mod) {
+	m, maxDate := p.df.Match(mod)
+	switch m {
 	case mode.Sync:
 		newVer, err := p.stasher.Stash(ctx, mod, ver)
 		if err != nil {
+			return errors.E(op, err)
+		}
+		if p.validateModuleDate(ctx, mod, ver, maxDate) != nil {
 			return errors.E(op, err)
 		}
 		return f(newVer)

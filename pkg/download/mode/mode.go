@@ -3,13 +3,14 @@ package mode
 import (
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
-	"strings"
-
+	"github.com/gomods/athens/pkg/date"
 	"github.com/gomods/athens/pkg/errors"
 	"github.com/gomods/athens/pkg/paths"
 	"github.com/hashicorp/hcl2/gohcl"
 	"github.com/hashicorp/hcl2/hclparse"
+	"io/ioutil"
+	"strings"
+	"time"
 )
 
 // Mode specifies the behavior of what to do
@@ -39,9 +40,11 @@ type DownloadFile struct {
 // DownloadPath represents a custom Mode for
 // a matching path.
 type DownloadPath struct {
-	Pattern     string `hcl:"pattern,label"`
-	Mode        Mode   `hcl:"mode"`
-	DownloadURL string `hcl:"downloadURL,optional"`
+	Pattern              string `hcl:"pattern,label"`
+	Mode                 Mode   `hcl:"mode"`
+	DownloadURL          string `hcl:"downloadURL,optional"`
+	MaxReleaseDateString string `hcl:"maxReleaseDate,optional"` // represent as "yyyy-mm-dd"
+	MaxReleaseDate       time.Time
 }
 
 // NewFile takes a mode and returns a DownloadFile.
@@ -107,6 +110,14 @@ func (d *DownloadFile) validate() error {
 		default:
 			return errors.E(op, fmt.Errorf("unrecognized mode for %v: %v", p.Pattern, p.Mode))
 		}
+		if p.MaxReleaseDateString != "" {
+			parsed, err := time.Parse(date.DateLayout, p.MaxReleaseDateString)
+			if err != nil {
+				return errors.E(op, fmt.Errorf("wrong date format for %v: %v, expected format: %v",
+					p.Pattern, p.MaxReleaseDateString, date.DateLayout))
+			}
+			p.MaxReleaseDate = parsed
+		}
 	}
 	return nil
 }
@@ -116,13 +127,13 @@ func (d *DownloadFile) validate() error {
 // which it appears in the HCL file, while the
 // default Mode will be returned if no patterns
 // exist or match.
-func (d *DownloadFile) Match(mod string) Mode {
+func (d *DownloadFile) Match(mod string) (Mode, time.Time) {
 	for _, p := range d.Paths {
 		if paths.MatchesPattern(p.Pattern, mod) {
-			return p.Mode
+			return p.Mode, p.MaxReleaseDate
 		}
 	}
-	return d.Mode
+	return d.Mode, time.Time{}
 }
 
 // URL returns the redirect URL that applies

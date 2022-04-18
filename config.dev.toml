@@ -118,7 +118,7 @@ Timeout = 300
 # Possible values are memory, disk, mongo, gcp, minio, s3, azureblob, external
 # Defaults to memory
 # Env override: ATHENS_STORAGE_TYPE
-StorageType = "memory"
+StorageType = "disk"
 
 # Certificate and key to make athens serve using https instead of plain text http.
 # Set both to enable.
@@ -250,7 +250,7 @@ NoSumPatterns = []
 # useful for using an environment variable in serverless
 # deployments.
 # Env override: ATHENS_DOWNLOAD_MODE
-DownloadMode = "sync"
+DownloadMode = "file:download.example.hcl"
 
 # NetworkMode configures how Athens will return the results
 # of the /list endpoint as it can be assembled from both its own
@@ -342,7 +342,7 @@ IndexType = "none"
     [Storage.Disk]
         # RootPath is the Athens Disk Root folder
         # Env override: ATHENS_DISK_STORAGE_ROOT
-        RootPath = "/path/on/disk"
+        RootPath = "/Users/anton/Work/athens/athens-data/"
 
     [Storage.GCP]
         # Required IAM Roles (https://cloud.google.com/storage/docs/access-control/iam-roles):
