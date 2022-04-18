@@ -210,6 +210,7 @@ func (p *protocol) Info(ctx context.Context, mod, ver string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+
 	return info, nil
 }
 
@@ -249,6 +250,7 @@ func (p *protocol) Zip(ctx context.Context, mod, ver string) (storage.SizeReadCl
 }
 
 func (p *protocol) validateModuleDate(ctx context.Context, mod, ver string, maxDate time.Time) error {
+	const op errors.Op = "protocol.validateModuleDate"
 	if maxDate.IsZero() {
 		return nil
 	}
@@ -262,7 +264,7 @@ func (p *protocol) validateModuleDate(ctx context.Context, mod, ver string, maxD
 		return fmt.Errorf("can't unmarshal storage info: %v, module: %v@%v", err, mod, ver)
 	}
 	if info.Time.After(maxDate) {
-		return fmt.Errorf("module %v@%v changed after max date", mod, ver)
+		return errors.E(op, "bad module date", errors.KindNotFound)
 	}
 
 	return nil
@@ -277,7 +279,7 @@ func (p *protocol) processDownload(ctx context.Context, mod, ver string, f func(
 		if err != nil {
 			return errors.E(op, err)
 		}
-		if p.validateModuleDate(ctx, mod, ver, maxDate) != nil {
+		if err = p.validateModuleDate(ctx, mod, newVer, maxDate); err != nil {
 			return errors.E(op, err)
 		}
 		return f(newVer)

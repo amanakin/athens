@@ -3,14 +3,15 @@ package mode
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
+	"strings"
+	"time"
+
 	"github.com/gomods/athens/pkg/date"
 	"github.com/gomods/athens/pkg/errors"
 	"github.com/gomods/athens/pkg/paths"
 	"github.com/hashicorp/hcl2/gohcl"
 	"github.com/hashicorp/hcl2/hclparse"
-	"io/ioutil"
-	"strings"
-	"time"
 )
 
 // Mode specifies the behavior of what to do

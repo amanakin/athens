@@ -113,7 +113,7 @@ var testCases = []struct {
 func TestMode(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			givenMode := tc.file.Match(tc.input)
+			givenMode, _ := tc.file.Match(tc.input)
 			if givenMode != tc.expectedMode {
 				t.Fatalf("expected matched mode to be %q but got %q", tc.expectedMode, givenMode)
 			}
