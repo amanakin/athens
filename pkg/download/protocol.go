@@ -210,6 +210,9 @@ func (p *protocol) Info(ctx context.Context, mod, ver string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+	if err = p.validateModule(ctx, mod, ver); err != nil {
+		return nil, errors.E(op, err)
+	}
 
 	return info, nil
 }
@@ -228,6 +231,10 @@ func (p *protocol) GoMod(ctx context.Context, mod, ver string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+	if err = p.validateModule(ctx, mod, ver); err != nil {
+		return nil, errors.E(op, err)
+	}
+
 	return goMod, nil
 }
 
@@ -245,8 +252,26 @@ func (p *protocol) Zip(ctx context.Context, mod, ver string) (storage.SizeReadCl
 	if err != nil {
 		return nil, errors.E(op, err)
 	}
+	if err = p.validateModule(ctx, mod, ver); err != nil {
+		return nil, errors.E(op, err)
+	}
 
 	return zip, nil
+}
+
+func (p *protocol) validateModule(ctx context.Context, mod, ver string) error {
+	const op errors.Op = "protocol.validateModule"
+	m, maxDate := p.df.Match(mod)
+	switch m {
+	case mode.Sync:
+		fallthrough
+	case mode.Async:
+		if err := p.validateModuleDate(ctx, mod, ver, maxDate); err != nil {
+			return errors.E(op, err)
+		}
+	}
+
+	return nil
 }
 
 func (p *protocol) validateModuleDate(ctx context.Context, mod, ver string, maxDate time.Time) error {
@@ -272,14 +297,11 @@ func (p *protocol) validateModuleDate(ctx context.Context, mod, ver string, maxD
 
 func (p *protocol) processDownload(ctx context.Context, mod, ver string, f func(newVer string) error) error {
 	const op errors.Op = "protocol.processDownload"
-	m, maxDate := p.df.Match(mod)
+	m, _ := p.df.Match(mod)
 	switch m {
 	case mode.Sync:
 		newVer, err := p.stasher.Stash(ctx, mod, ver)
 		if err != nil {
-			return errors.E(op, err)
-		}
-		if err = p.validateModuleDate(ctx, mod, newVer, maxDate); err != nil {
 			return errors.E(op, err)
 		}
 		return f(newVer)
