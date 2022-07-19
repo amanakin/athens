@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gomods/athens/pkg/date"
 	"github.com/gomods/athens/pkg/download/mode"
 	"github.com/gomods/athens/pkg/errors"
 	"github.com/gomods/athens/pkg/module"
@@ -281,15 +282,27 @@ func (p *protocol) validateModuleDate(ctx context.Context, mod, ver string, maxD
 	}
 	infoRaw, err := p.storage.Info(ctx, mod, ver)
 	if err != nil {
-		return fmt.Errorf("can't get storage info: %v, module: %v@%v", err, mod, ver)
+		if errors.Is(err, errors.KindNotFound) {
+			var incompErr error
+			infoRaw, incompErr = p.storage.Info(ctx, mod, ver+"+incompatible")
+			if incompErr != nil {
+				return errors.E(op, fmt.Errorf("can't get storage info(tried incompatible): %v, module: %v@%v", err, mod, ver),
+					errors.KindUnexpected)
+			}
+		} else {
+			return errors.E(op, fmt.Errorf("can't get storage info: %v, module: %v@%v", err, mod, ver),
+				errors.KindUnexpected)
+		}
 	}
 	info := storage.RevInfo{}
 	err = json.Unmarshal(infoRaw, &info)
 	if err != nil {
-		return fmt.Errorf("can't unmarshal storage info: %v, module: %v@%v", err, mod, ver)
+		return errors.E(op, fmt.Errorf("can't unmarshal storage info: %v, module: %v@%v", err, mod, ver),
+			errors.KindUnexpected)
 	}
 	if info.Time.After(maxDate) {
-		return errors.E(op, "bad module date", errors.KindNotFound)
+		return errors.E(op, fmt.Errorf("bad module date: max date: %v, actual date: %v",
+			maxDate.Format(date.DateLayout), info.Time.Format(date.DateLayout)), errors.KindNotFound)
 	}
 
 	return nil
